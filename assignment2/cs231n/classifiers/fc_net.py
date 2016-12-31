@@ -186,6 +186,12 @@ class FullyConnectedNet(object):
     # initial last layer
     self.params['W%d' % self.num_layers] = np.random.normal(0.0, weight_scale, (hidden_dims[-1], num_classes))
     self.params['b%d' % self.num_layers] = np.zeros(num_classes)
+    # initial batch normalization layer
+    if self.use_batchnorm:
+      for i in range(0, self.num_layers-1):
+        n = i + 1
+        self.params['gamma%d' % n] = np.ones(hidden_dims[i])
+        self.params['beta%d' % n] = np.zeros(hidden_dims[i])
     ############################################################################
     #                             END OF YOUR CODE                             #
     ############################################################################
@@ -249,6 +255,15 @@ class FullyConnectedNet(object):
       W, b = self.params['W%d' % i], self.params['b%d' % i]
 
       out, fc_cache = affine_forward(x, W, b)
+      if self.use_batchnorm:
+        gamma, beta = self.params['gamma%d' % i], self.params['beta%d' % i]
+        out, bn_cache = batchnorm_forward(out, gamma, beta, self.bn_params[i-1])
+        cache['bn%d_cache' % i] = bn_cache
+      
+      if self.use_dropout:
+        out, dp_cache = dropout_forward(out, self.dropout_param)
+        cache['dp%d_cache' % i] = dp_cache
+
       x, relu_cache = relu_forward(out)
 
       cache['fc%d_cache' % i] = fc_cache
@@ -290,8 +305,16 @@ class FullyConnectedNet(object):
     grads['b%d' % self.num_layers] = db
     for i in range(self.num_layers-1, 0, -1):
       fc_cache, relu_cache = cache['fc%d_cache' % i], cache['relu%d_cache' % i]
+      if self.use_dropout:
+        dp_cache = cache['dp%d_cache' % i]
+        dx = dropout_backward(dx, dp_cache)
 
       dx = relu_backward(dx, relu_cache)
+      if self.use_batchnorm:
+        bn_cache = cache['bn%d_cache' % i]
+        dx, dgamma, dbeta = batchnorm_backward(dx, bn_cache)
+        grads['gamma%d' % i] = dgamma
+        grads['beta%d' % i] = dbeta
 
       dx, dW, db = affine_backward(dx, fc_cache)
 
