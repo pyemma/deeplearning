@@ -139,6 +139,8 @@ class CaptioningRNN(object):
     embedding_out, embedding_cache = word_embedding_forward(captions_in, W_embed)
     if self.cell_type == 'rnn':
       h, rnn_cache = rnn_forward(embedding_out, affine_out, Wx, Wh, b)
+    else:
+      h, rnn_cache = lstm_forward(embedding_out, affine_out, Wx, Wh, b)
     temporal_affine_out, temporal_affine_cache = temporal_affine_forward(h, W_vocab, b_vocab)
     loss, dx = temporal_softmax_loss(temporal_affine_out, captions_out, mask)
 
@@ -147,6 +149,8 @@ class CaptioningRNN(object):
     grads['b_vocab'] = db_vocab
     if self.cell_type == 'rnn':
       dembedding_out, daffine_out, dWx, dWh, db = rnn_backward(dh, rnn_cache)
+    else:
+      dembedding_out, daffine_out, dWx, dWh, db = lstm_backward(dh, rnn_cache)
     grads['Wx'] = dWx
     grads['Wh'] = dWh
     grads['b'] = db
@@ -223,6 +227,8 @@ class CaptioningRNN(object):
       embedding, _ = word_embedding_forward(captions[:, i-1].reshape((N, 1)), W_embed)
       if self.cell_type == 'rnn':
         prev_h, _ = rnn_step_forward(embedding.reshape((embedding.shape[0], embedding.shape[2])), prev_h, Wx, Wh, b)
+      else:
+        prev_h, prev_c, _ = lstm_step_forward(embedding.reshape((embedding.shape[0], embedding.shape[2])), prev_h, prev_c, Wx, Wh, b)
       scores, _ = affine_forward(prev_h, W_vocab, b_vocab)
       captions[:, i] = np.argmax(scores, axis=1)
     ############################################################################
