@@ -1,1 +1,3 @@
 assignment*/cs231n/datasets/*
+*.pyc
+tf/ml-100k/*
